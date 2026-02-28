@@ -1,0 +1,6 @@
+~/CAPSTONE/server/env/
+~/CAPSTONE/server/server_session.session 
+~/CAPSTONE/server/server_session.session-journal
+~/CAPSTONE/client/go.mod
+~/CAPSTONE/client/go.sum
+
