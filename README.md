@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/status-in%20development-yellow" alt="Status"/>
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/go-1.21+-00ADD8" alt="Go"/>
-  <img src="https://img.shields.io/badge/platform-linux-orange" alt="Platform"/>
+  <img src="https://img.shields.io/badge/platform-windows-blue" alt="Platform"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
 </p>
 
@@ -73,31 +73,7 @@ Built as a learning project to explore C2 architecture, the Telegram Bot API, MT
 | Server | Python 3.13, Flask, Telethon |
 | Client | Go 1.21+ |
 | C2 Channel | Telegram (MTProto + Bot API) |
-| OS | Linux (Kali recommended) |
-
 ---
-
-## Project Structure
-
-```
-vanissa-c2/
-├── server/
-│   ├── app.py              # Flask server + interactive shell
-│   ├── .env                # API credentials
-│   └── requirements.txt    # Python dependencies
-│
-├── client/
-│   ├── main.go             # Go client entry point
-│   ├── go.mod
-│   ├── go.sum
-│   ├── .env                # Bot credentials
-│   └── telegram/
-│       └── client.go       # Telegram API wrapper
-│
-└── assets/
-    └── README-img/
-        └── vanissa-c2.jpeg
-```
 
 ---
 
@@ -116,7 +92,7 @@ vanissa-c2/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/vanissa-c2.git
+git clone https://github.com/SaadAzil3/Vanissa-C2.git
 cd vanissa-c2
 ```
 
@@ -143,7 +119,7 @@ Create `server/.env`:
 ```env
 API_ID=12345678
 API_HASH=your_api_hash_here
-PHONE=+213xxxxxxxxx
+PHONE=+xxxxxxxxx
 CHAT_ID=-1003728125166
 BOT_TOKEN=111:SERVER_BOT_TOKEN
 ```
@@ -173,8 +149,8 @@ go run main.go
 ```
 
 ```
-🤖 Go client started. Waiting for commands...
-📡 Polling... got 0 updates
+Go client started. Waiting for commands...
+Polling... got 0 updates
 ```
 
 ### Start the server (on operator machine)
@@ -187,12 +163,12 @@ python app.py
 On first run, Telegram will ask you to authenticate with your phone number and code. A session file (`server_session.session`) will be saved for future runs.
 
 ```
-✅ Telethon user client connected!
-🔄 Telethon polling loop started...
+Telethon user client connected!
+Telethon polling loop started...
 
 ==================================================
-🖥️  REMOTE SHELL — type commands to execute on client
-    Type 'exit' to quit
+REMOTE SHELL — type commands to execute on client
+Type 'exit' to quit
 ==================================================
 
 shell>
@@ -202,19 +178,19 @@ shell>
 
 ```bash
 shell> whoami
-📥 Output:
+Output:
 azil
 
 shell> uname -a
-📥 Output:
+Output:
 Linux kali 6.x.x-kali #1 SMP PREEMPT_DYNAMIC ...
 
 shell> ls /etc/passwd
-📥 Output:
+Output:
 /etc/passwd
 
 shell> exit
-👋 Goodbye!
+Goodbye!
 ```
 
 ---
@@ -240,10 +216,6 @@ The `id` field ties each result back to its instruction, allowing the server to 
 
 ## Author
 
-**azil** — Cybersecurity student, Kali Linux enjoyer 🐉
+**SA3D00N** — Cybersecurity student
 
 ---
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
