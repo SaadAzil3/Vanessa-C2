@@ -4,4 +4,5 @@
 ~/CAPSTONE/client/go.mod
 ~/CAPSTONE/client/go.sum
 ~/CAPSTONE/.gitignore
+~/CAPSTONE/server/__pycache__/
 
