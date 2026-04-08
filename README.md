@@ -1,4 +1,4 @@
-# Vanissa C2
+# Vanissa C3
 
 <p align="center">
   <img src="./assets/README-img/vanissa-c2.jpeg" alt="Vanissa C2 Logo" width="400"/>
