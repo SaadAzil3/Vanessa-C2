@@ -5,4 +5,11 @@
 ~/CAPSTONE/client/go.sum
 ~/CAPSTONE/.gitignore
 ~/CAPSTONE/server/__pycache__/
-
+__pycache__/
+*.pyc
+*.exe
+*.db
+*.db-shm
+*.db-wal
+*.session*
+.env
