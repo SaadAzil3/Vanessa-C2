@@ -34,7 +34,7 @@
 ---
 
 ## Architecture
-<img src="./assets/README-img/diagram.png" alt="Vanessa C2 Logo" width="400"/>
+<img src="./assets/README-img/diagram.png" alt="Vanessa C2 Logo" width="600"/>
 
 ---
 
