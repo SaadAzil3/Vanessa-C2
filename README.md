@@ -89,45 +89,6 @@ vanessa-c2/
 
 ---
 
-## Protocol
-
-### Stealth Encoding
-
-All protocol messages are encoded as **normal-looking JSON** — no keywords, no fixed prefixes, no detectable signatures:
-
-```json
-{"id":"6f85","d":"4xfW55kTf8tAXtYCTwdh9UNUAkzY...","t":1776494828}
-```
-
-Under the hood:
-
-| Field | Purpose |
-|-------|---------|
-| `id` | Random 4-char hex (camouflage) |
-| `d` | AES-256-GCM encrypted payload (base64) |
-| `t` | Unix timestamp (camouflage) |
-
-Protocol keywords (`INSTRUCTION`, `RESULT`, `CHECKIN`, etc.) are replaced with **2-char hex type codes** *inside* the encrypted payload — invisible to network inspection.
-
-### Encoding Pipeline
-
-```
-1. Build plaintext     →  INSTRUCTION|agent123|instr001|whoami
-2. Replace keyword     →  01agent123|instr001|whoami
-3. AES-256-GCM encrypt →  nonce + ciphertext (random bytes)
-4. Base64 encode       →  4xfW55kTf8tAXtYCTwdh9UN...
-5. JSON envelope       →  {"id":"6f85","d":"...","t":1776494828}
-```
-
-### Encryption
-
-- **Algorithm**: AES-256-GCM with 12-byte random nonce per message
-- **Key derivation**: `SHA-256(C2_SECRET)` → 32-byte key
-- **Cross-language**: Go and Python implementations are interoperable
-- **No signatures**: Zero fixed strings on the wire — unsignaturable by NDR/IDS
-
----
-
 ## Setup
 
 ### Prerequisites
