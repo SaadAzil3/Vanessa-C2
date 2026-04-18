@@ -23,42 +23,18 @@
 
 ### Key Capabilities
 
-- 🔀 **Multi-channel C2** — Telegram + Discord with runtime channel switching
-- 🔐 **AES-256-GCM encryption** — All protocol messages encrypted end-to-end
-- 🎲 **Jitter & evasion** — Randomized beacon intervals to defeat NDR fingerprinting
-- 💾 **Persistent state** — SQLite-backed agent registry survives server restarts
-- 📂 **File exfiltration** — Download files from targets
-- 🖥️ **Interactive shell** — Full operator console with agent selection
-- 🪦 **Agent health monitoring** — Automatic reaper marks dead agents
+- **Multi-channel C2** — Telegram + Discord with runtime channel switching
+- **AES-256-GCM encryption** — All protocol messages encrypted end-to-end
+- **Jitter & evasion** — Randomized beacon intervals to defeat NDR fingerprinting
+- **Persistent state** — SQLite-backed agent registry survives server restarts
+- **File exfiltration** — Download files from targets
+- **Interactive shell** — Full operator console with agent selection
+- **Agent health monitoring** — Automatic reaper marks dead agents
 
 ---
 
 ## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│   [Operator Shell]                                               │
-│   vanessa> use agent_abc123                                      │
-│   vanessa(abc123)> whoami                                        │
-│       │                                                          │
-│       ▼                                                          │
-│   [Python Server]                                                │
-│   Flask API + SQLite + Agent Registry                            │
-│       │                                                          │
-│       ├──► [Telegram Channel] ──ENC|base64(AES-GCM(msg))──►     │
-│       │    (Telethon MTProto)                                    │
-│       │                                                          │
-│       └──► [Discord Channel]  ──ENC|base64(AES-GCM(msg))──►     │
-│            (discord.py bot)                                      │
-│                                        │                         │
-│                                        ▼                         │
-│                               [Go Agent / Implant]               │
-│                               Polls → Decrypt → Execute          │
-│                               Encrypt → Send RESULT back         │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+<img src="./assets/README-img/diagram.png" alt="Vanessa C2 Logo" width="400"/>
 
 ---
 
@@ -71,7 +47,6 @@
 | **Database** | SQLite (`vanessa.db`) |
 | **Encryption** | AES-256-GCM (SHA-256 key derivation) |
 | **Channels** | Telegram Bot API, Discord Bot API |
-| **Dropper** | Go (embedded EXE + decoy PDF + RLO masquerade) |
 
 ---
 
@@ -107,8 +82,6 @@ vanessa-c2/
 │   ├── .env                    # Bot tokens + C2_SECRET
 │   ├── go.mod / go.sum
 │
-├── dropper/
-│   └── main.go                 # PDF dropper with embedded agent
 │
 └── assets/
     └── README-img/
@@ -255,39 +228,6 @@ Discord channel available
 
 ---
 
-## Dropper
-
-The `dropper/` directory contains a Go-based dropper that:
-
-1. Embeds the compiled agent binary at build time (`go:embed`)
-2. Drops a decoy PDF to `%TEMP%` and opens it (user sees a legit document)
-3. Drops the agent to `%APPDATA%\Microsoft\WindowsCache\svchost.exe`
-4. Runs the agent silently with `CREATE_NO_WINDOW`
-
-```bash
-# Build (from dropper/ directory, with agent_client.exe present)
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H windowsgui" -o Report_Q1_2026.exe .
-```
-
----
-
-## Roadmap
-
-- [x] Multi-channel support (Telegram + Discord)
-- [x] Interactive operator shell
-- [x] Agent health monitoring (reaper)
-- [x] File exfiltration
-- [x] Runtime jitter configuration
-- [x] AES-256-GCM encrypted protocol
-- [x] PDF dropper with RLO masquerade
-- [x] SQLite state persistence across restarts
-- [ ] LoDD channel (LLM-obfuscated Dead Drop via Claude + Notion)
-- [ ] Windows persistence (Registry / Scheduled Tasks)
-- [ ] Screenshot capture module
-- [ ] Web dashboard for operators
-
----
-
 ## Disclaimer
 
 This tool is intended for **educational purposes** and **authorized penetration testing only**. It was developed as part of a master's thesis on network evasion techniques using legitimate cloud services. Unauthorized use against systems you do not own or have explicit permission to test is **illegal and unethical**.
@@ -296,7 +236,7 @@ This tool is intended for **educational purposes** and **authorized penetration 
 
 ## Author
 
-**Saad Azil** — Cybersecurity student & researcher 🐉
+**Saad Azil** — Cybersecurity student
 
 ---
 
