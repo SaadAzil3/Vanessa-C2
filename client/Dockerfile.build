@@ -15,5 +15,4 @@ RUN go mod download
 # Copy all agent source
 COPY . .
 
-# Default entrypoint — overridden by generate.sh
-ENTRYPOINT ["go", "build"]
+
