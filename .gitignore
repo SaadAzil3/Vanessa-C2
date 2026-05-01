@@ -1,15 +1,36 @@
-~/CAPSTONE/server/env/
-~/CAPSTONE/server/server_session.session 
-~/CAPSTONE/server/server_session.session-journal
-~/CAPSTONE/client/go.mod
-~/CAPSTONE/client/go.sum
-~/CAPSTONE/.gitignore
-~/CAPSTONE/server/__pycache__/
+# ── Python ────────────────────────────────
 __pycache__/
 *.pyc
-*.exe
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# ── Secrets (NEVER commit real tokens) ───
+.env
+!*.env.example
+
+# ── Database & Sessions ──────────────────
 *.db
 *.db-shm
 *.db-wal
-*.session*
-.env
+*.session
+*.session-journal
+
+# ── Compiled binaries & payloads ─────────
+*.exe
+*.elf
+build/
+client/agent_*
+
+# ── Agent state files ────────────────────
+client/.vns_*
+
+# ── IDE / OS ─────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,149 @@
+#!/bin/bash
+# ═══════════════════════════════════════════
+#  Vanessa C2 — CLI Wrapper
+#  Installed to /usr/local/bin/vanessa
+# ═══════════════════════════════════════════
+
+set -e
+
+# Resolve the project root (stored during install)
+VANESSA_ROOT="${VANESSA_HOME:-__VANESSA_ROOT__}"
+
+# Colors
+RED='\033[0;91m'
+GREEN='\033[0;92m'
+YELLOW='\033[0;93m'
+CYAN='\033[0;96m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+BANNER="${CYAN}
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║   ██╗   ██╗ █████╗ ███╗   ██╗███████╗███████╗███████╗ █████╗   ║
+  ║   ██║   ██║██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝██╔══██╗  ║
+  ║   ██║   ██║███████║██╔██╗ ██║█████╗  ███████╗███████╗███████║  ║
+  ║   ╚██╗ ██╔╝██╔══██║██║╚██╗██║██╔══╝  ╚════██║╚════██║██╔══██║  ║
+  ║    ╚████╔╝ ██║  ██║██║ ╚████║███████╗███████║███████║██║  ██║  ║
+  ║     ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝  ║
+  ║                        C2 Framework                              ║
+  ╚══════════════════════════════════════════════════════════════════╝
+${RESET}"
+
+usage() {
+    echo -e "$BANNER"
+    echo -e "  ${BOLD}Usage:${RESET}  vanessa <command>"
+    echo ""
+    echo -e "  ${BOLD}Commands:${RESET}"
+    echo -e "    ${GREEN}server${RESET}       Start the C2 server (Docker)"
+    echo -e "    ${GREEN}stop${RESET}         Stop the C2 server"
+    echo -e "    ${GREEN}attach${RESET}       Attach to the operator console"
+    echo -e "    ${GREEN}generate${RESET}     Generate a new agent payload"
+    echo -e "    ${GREEN}payloads${RESET}     List generated payloads"
+    echo -e "    ${GREEN}logs${RESET}         Tail server logs"
+    echo -e "    ${GREEN}status${RESET}       Show server health status"
+    echo -e "    ${GREEN}uninstall${RESET}    Remove vanessa from system"
+    echo ""
+}
+
+# ── Check project exists ──────────────────
+check_root() {
+    if [ ! -d "$VANESSA_ROOT" ]; then
+        echo -e "${RED}[!] Vanessa project not found at: $VANESSA_ROOT${RESET}"
+        echo -e "${RED}    Re-run the installer or set VANESSA_HOME.${RESET}"
+        exit 1
+    fi
+}
+
+# ── Commands ──────────────────────────────
+cmd_server() {
+    check_root
+    echo -e "${CYAN}[*] Starting Vanessa C2 Server...${RESET}"
+    cd "$VANESSA_ROOT"
+    docker compose up -d --build vanessa-c2-server
+    echo ""
+    echo -e "${GREEN}[✓] Server is running.${RESET}"
+    echo -e "    Use ${BOLD}vanessa attach${RESET} to open the operator console."
+    echo -e "    Use ${BOLD}vanessa logs${RESET} to view background logs."
+}
+
+cmd_stop() {
+    check_root
+    echo -e "${YELLOW}[*] Stopping Vanessa C2 Server...${RESET}"
+    cd "$VANESSA_ROOT"
+    docker compose down
+    echo -e "${GREEN}[✓] Server stopped.${RESET}"
+}
+
+cmd_attach() {
+    check_root
+    echo -e "${CYAN}[*] Attaching to operator console...${RESET}"
+    echo -e "${YELLOW}    Detach: Ctrl+P, then Ctrl+Q${RESET}"
+    echo ""
+    docker attach vanessa-c2-server
+}
+
+cmd_generate() {
+    check_root
+    bash "$VANESSA_ROOT/generator/generate.sh"
+}
+
+cmd_payloads() {
+    PAYLOAD_DIR="$HOME/.vanessa/payloads"
+    if [ ! -d "$PAYLOAD_DIR" ] || [ -z "$(ls -A "$PAYLOAD_DIR" 2>/dev/null)" ]; then
+        echo -e "${YELLOW}[*] No payloads generated yet.${RESET}"
+        echo -e "    Run ${BOLD}vanessa generate${RESET} to create one."
+        return
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}${CYAN}Generated Payloads:${RESET}"
+    echo -e "  ──────────────────────────────────────────"
+    ls -lh "$PAYLOAD_DIR" | tail -n +2 | while read -r line; do
+        echo -e "  ${GREEN}$line${RESET}"
+    done
+    echo ""
+    echo -e "  ${BOLD}Location:${RESET} $PAYLOAD_DIR"
+    echo ""
+}
+
+cmd_logs() {
+    check_root
+    cd "$VANESSA_ROOT"
+    docker compose logs -f vanessa-c2-server
+}
+
+cmd_status() {
+    check_root
+    # Check if container is running
+    if docker ps --format '{{.Names}}' | grep -q vanessa-c2-server; then
+        echo -e "${GREEN}[✓] Server is RUNNING${RESET}"
+        echo ""
+        # Try to hit health endpoint
+        HEALTH=$(curl -s http://127.0.0.1:5000/health 2>/dev/null || echo '{"status":"unreachable"}')
+        echo -e "  ${BOLD}Health:${RESET} $HEALTH"
+    else
+        echo -e "${RED}[✗] Server is NOT running${RESET}"
+        echo -e "    Use ${BOLD}vanessa server${RESET} to start it."
+    fi
+}
+
+cmd_uninstall() {
+    echo -e "${YELLOW}[*] Uninstalling Vanessa C2...${RESET}"
+    sudo rm -f /usr/local/bin/vanessa
+    echo -e "${GREEN}[✓] Removed /usr/local/bin/vanessa${RESET}"
+    echo -e "${YELLOW}    Project files at $VANESSA_ROOT were NOT deleted.${RESET}"
+    echo -e "${YELLOW}    Payloads at ~/.vanessa/ were NOT deleted.${RESET}"
+}
+
+# ── Dispatch ──────────────────────────────
+case "${1:-}" in
+    server)    cmd_server ;;
+    stop)      cmd_stop ;;
+    attach)    cmd_attach ;;
+    generate)  cmd_generate ;;
+    payloads)  cmd_payloads ;;
+    logs)      cmd_logs ;;
+    status)    cmd_status ;;
+    uninstall) cmd_uninstall ;;
+    *)         usage ;;
+esac

@@ -1,0 +1,19 @@
+# ── Vanessa C2 Agent Builder ──────────────
+# Base image for cross-compiling Go agents
+# Used by: vanessa generate
+
+FROM golang:1.22-alpine
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /src
+
+# Copy module files first (cache layer)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy all agent source
+COPY . .
+
+# Default entrypoint — overridden by generate.sh
+ENTRYPOINT ["go", "build"]

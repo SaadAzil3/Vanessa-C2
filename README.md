@@ -108,13 +108,6 @@ cd Vanessa-C2
 
 ### 2. Server Setup
 
-```bash
-cd server
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-```
-
 Create `server/.env`:
 ```env
 API_ID=12345678
@@ -125,6 +118,17 @@ CHAT_ID=-100xxxxxxxxxx
 DISCORD_TOKEN=your_discord_bot_token
 DISCORD_CHANNEL_ID=your_discord_channel_id
 C2_SECRET=your_shared_encryption_key
+```
+
+#### Option A: Docker (Recommended One-Command Setup)
+No local Python environment is needed. Ensure Docker and Docker Compose are installed.
+
+#### Option B: Manual Local Setup
+```bash
+cd server
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt
 ```
 
 ### 3. Client Setup
@@ -150,13 +154,24 @@ C2_SECRET=your_shared_encryption_key
 
 ### Start the Server
 
+#### Option A: Using Docker (Recommended)
+```bash
+# Build and start the C2 server in the background
+docker compose up -d --build
+
+# Attach to the interactive operator console
+docker attach vanessa-c2-server
+```
+> **Note:** To detach from the console and leave the C2 running, press `Ctrl+P` then `Ctrl+Q`. Typing `exit` will kill the server.
+
+#### Option B: Manual Local Setup
 ```bash
 cd server
 source env/bin/activate
 python app.py
 ```
 
-```
+```text
 [+] Encryption: ENABLED (AES-256-GCM)
 [+] Telegram channel configured
 [+] Discord channel configured
