@@ -39,6 +39,8 @@ logging.basicConfig(
 log = logging.getLogger("vanissa")
 
 app = Flask(__name__)
+# Suppress the default HTTP request logging to keep the interactive console clean
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 # ─────────────────────────────────────────
 # Shared state
