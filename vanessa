@@ -37,6 +37,7 @@ usage() {
     echo -e "    ${GREEN}server${RESET}       Start the C2 server (Docker)"
     echo -e "    ${GREEN}stop${RESET}         Stop the C2 server"
     echo -e "    ${GREEN}attach${RESET}       Attach to the operator console"
+    echo -e "    ${GREEN}auth${RESET}         Authenticate Telegram interactively (do this first!)"
     echo -e "    ${GREEN}generate${RESET}     Generate a new agent payload"
     echo -e "    ${GREEN}payloads${RESET}     List generated payloads"
     echo -e "    ${GREEN}logs${RESET}         Tail server logs"
@@ -55,6 +56,41 @@ check_root() {
 }
 
 # ── Commands ──────────────────────────────
+cmd_auth() {
+    check_root
+    echo -e "${CYAN}[*] Starting interactive Telegram authentication...${RESET}"
+    cd "$VANESSA_ROOT"
+    
+    if docker ps --format '{{.Names}}' | grep -q vanessa-c2-server; then
+        echo -e "${YELLOW}[*] Stopping server to unlock session file...${RESET}"
+        docker compose down
+    fi
+
+    docker compose run --rm -it vanessa-c2-server python -c "
+import os, asyncio
+from dotenv import load_dotenv
+from telethon import TelegramClient
+
+load_dotenv('.env')
+api_id = os.getenv('API_ID')
+api_hash = os.getenv('API_HASH')
+phone = os.getenv('PHONE')
+
+if not all([api_id, api_hash, phone]):
+    print('Error: API_ID, API_HASH, and PHONE must be in .env')
+    exit(1)
+
+client = TelegramClient('data/server_session', int(api_id), api_hash)
+async def main():
+    print(f'\n[*] Authenticating Telegram for {phone}...')
+    await client.start(phone=phone)
+    print('\n[✓] Authentication successful! Session saved to persistent volume.')
+
+asyncio.run(main())
+"
+    echo -e "${GREEN}[*] You can now start the server with: vanessa server${RESET}"
+}
+
 cmd_server() {
     check_root
     echo -e "${CYAN}[*] Starting Vanessa C2 Server...${RESET}"
@@ -137,6 +173,7 @@ cmd_uninstall() {
 
 # ── Dispatch ──────────────────────────────
 case "${1:-}" in
+    auth)      cmd_auth ;;
     server)    cmd_server ;;
     stop)      cmd_stop ;;
     attach)    cmd_attach ;;
