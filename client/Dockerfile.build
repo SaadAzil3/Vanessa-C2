@@ -2,7 +2,7 @@
 # Base image for cross-compiling Go agents
 # Used by: vanessa generate
 
-FROM golang:1.22-alpine
+FROM golang:1.24-alpine
 
 RUN apk add --no-cache git ca-certificates
 
