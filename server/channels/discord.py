@@ -98,7 +98,10 @@ class DiscordChannel(C2Channel):
 
     def _run_loop(self):
         asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._client.start(self._token))
+        try:
+            self._loop.run_until_complete(self._client.start(self._token))
+        except Exception as e:
+            log.error(f"[discord] Fatal error in discord loop: {e}")
 
     def _setup_handlers(self):
 

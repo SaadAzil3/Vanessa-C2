@@ -59,7 +59,7 @@ cmd_server() {
     check_root
     echo -e "${CYAN}[*] Starting Vanessa C2 Server...${RESET}"
     cd "$VANESSA_ROOT"
-    docker compose up -d --build vanessa-c2-server
+    docker compose up -d vanessa-c2-server
     echo ""
     echo -e "${GREEN}[✓] Server is running.${RESET}"
     echo -e "    Use ${BOLD}vanessa attach${RESET} to open the operator console."

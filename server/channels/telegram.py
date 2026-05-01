@@ -52,12 +52,12 @@ class TelegramChannel(C2Channel):
         )
         self._thread.start()
 
-        deadline = time.time() + 15
+        deadline = time.time() + 60
         while not self._connected and time.time() < deadline:
             time.sleep(0.3)
 
         if not self._connected:
-            raise ConnectionError("Telegram client failed to connect within 15s")
+            raise ConnectionError("Telegram client failed to connect within 60s (Did you enter the login code?)")
 
         asyncio.run_coroutine_threadsafe(self._poll_messages(), self._loop)
         log.info("[telegram] Connected and polling")

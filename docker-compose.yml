@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   # ── C2 Server (Python) ────────────────────
   vanessa-c2-server:
+    image: vanessa-c2-server:latest
     build:
       context: ./server
       dockerfile: Dockerfile

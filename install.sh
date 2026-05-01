@@ -80,7 +80,7 @@ echo -e "${BOLD}[4/5] Building Docker images...${RESET}"
 
 echo -e "  ${CYAN}[*] Building C2 server image...${RESET}"
 cd "$PROJECT_ROOT"
-docker compose build vanessa-c2-server
+docker build -t vanessa-c2-server:latest -f "$PROJECT_ROOT/server/Dockerfile" "$PROJECT_ROOT/server"
 echo -e "  ${GREEN}✓ Server image built${RESET}"
 
 # Build the Go cross-compiler image for payload generation
