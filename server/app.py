@@ -111,27 +111,18 @@ def build_channels() -> dict[str, C2Channel]:
 
     # ── Discord ────────────────────────────
     discord_token = os.getenv("DISCORD_TOKEN")
-    discord_ch_id = os.getenv("DISCORD_CHANNEL_ID")
 
-    if discord_token and discord_ch_id:
-        try:
-            ch_id_int = int(discord_ch_id)
-        except ValueError:
-            log.warning(f"Discord disabled — DISCORD_CHANNEL_ID '{discord_ch_id}' is not a valid integer")
-            ch_id_int = None
-
-        if ch_id_int is not None:
-            from channels.discord import DiscordChannel
-            ch = DiscordChannel(
-                token=discord_token,
-                channel_id=ch_id_int,
-                registry=registry,
-            )
-            _wire_callbacks(ch)
-            channels["discord"] = ch
-            log.info("Discord channel configured")
+    if discord_token:
+        from channels.discord import DiscordChannel
+        ch = DiscordChannel(
+            token=discord_token,
+            registry=registry,
+        )
+        _wire_callbacks(ch)
+        channels["discord"] = ch
+        log.info("Discord channel configured")
     else:
-        log.warning("Discord channel disabled — missing DISCORD_TOKEN or DISCORD_CHANNEL_ID")
+        log.warning("Discord channel disabled — missing DISCORD_TOKEN")
 
     return channels
 
